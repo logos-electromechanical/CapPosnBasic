@@ -1,0 +1,15 @@
+CapPosnBasic KEYWORD1
+
+setGainsOffsets KEYWORD2
+bound KEYWORD2
+capture KEYWORD2
+angleDeg KEYWORD2
+angleRad KEYWORD2
+setReadDelayMicros KEYWORD2
+setMeasureDelayMicros KEYWORD2
+rawCosA KEYWORD2
+rawCosB KEYWORD2
+rawSinA KEYWORD2
+rawSinB KEYWORD2
+sinPhase KEYWORD2
+cosPhase KEYWORD2

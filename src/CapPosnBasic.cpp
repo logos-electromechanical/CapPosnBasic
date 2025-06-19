@@ -9,7 +9,11 @@
  *
  */
 
- #include "CapPosnBasic.h"
+#include "CapPosnBasic.h"
+
+#define ANALOG_RESOLUTION (12) // This will work for any board, but may be weird for ones with only 10 bit resolution
+#define INPUT_MAX (2000)
+#define INPUT_MIN (0)
 
 CapPosnBasic::CapPosnBasic(
     uint32_t drivePin,                  // The pin used to drive the system
@@ -17,9 +21,9 @@ CapPosnBasic::CapPosnBasic(
     uint32_t sinBpin,                   // The B phase of the sin half of the sense pads
     uint32_t cosApin,                   // The A phase of the cos half of the sense pads
     uint32_t cosBpin,                   // The B phase of the cos half of the sense pads
-    uint16_t readDelayMicros = 30,      // Delay between charging cap & start of measurement
-    uint16_t measureDelayMicros = 150,  // Delay between phase measurements
-    eAnalogReference analogRef = AR_DEFAULT) 
+    uint16_t readDelayMicros,           // Delay between charging cap & start of measurement
+    uint16_t measureDelayMicros,        // Delay between phase measurements
+    eAnalogReference analogRef)         // Analog reference to use 
 {
     
     _drivePin       = drivePin;
@@ -30,23 +34,28 @@ CapPosnBasic::CapPosnBasic(
     _readDelay      = readDelayMicros;
     _measureDelay   = measureDelayMicros;
     _ref            = analogRef;
-    _sinGain        = cPlaces;   
+    _sinGain        = 1.0;   
     _sinOffset      = 0;
-    _cosGain        = cPlaces;    
+    _cosGain        = 1.0;    
     _cosOffset      = 0;
     pinMode(_drivePin, OUTPUT);
     analogReference(_ref);
+    analogReadResolution(ANALOG_RESOLUTION);
+    setSinARange((1 << ANALOG_RESOLUTION), 0);
+    setSinBRange((1 << ANALOG_RESOLUTION), 0);
+    setCosARange((1 << ANALOG_RESOLUTION), 0);
+    setCosBRange((1 << ANALOG_RESOLUTION), 0);
 }
 
 void CapPosnBasic::setGainsOffsets(float sinOffset, float sinGain, float cosOffset, float cosGain) {
-    _sinGain    = sinGain * cPlaces;
-    _sinOffset  = sinOffset * cPlaces;
-    _cosGain    = cosGain * cPlaces;
-    _cosOffset  = cosOffset * cPlaces;
+    _sinGain    = sinGain;
+    _sinOffset  = sinOffset;
+    _cosGain    = cosGain;
+    _cosOffset  = cosOffset;
 }
 
 
-int32_t CapPosnBasic::bound(int32_t x, int32_t max, int32_t min) {
+float CapPosnBasic::bound(float x, float max, float min) {
     if (x > max) { return max; }
     if (x < min) { return min; }
     return x;
@@ -94,33 +103,40 @@ void CapPosnBasic::capture() {
 
 }
 
-int32_t CapPosnBasic::calcAngle() {
-    _sin = bound((((_sinA - _sinB) * _sinGain)/(_sinA + _sinB)) + _sinOffset);
-    _cos = bound((((_cosA - _cosB) * _cosGain)/(_cosA + _cosB)) + _cosOffset);
-
-    int32_t sinAngle, cosAngle;
-
-    if ((_sin >= 0) and (_cos >= 0)) {      // angle from 0-90 deg
-        sinAngle = _sin * cOneOver2Pi;
-        cosAngle = -(_cos - 1) * cOneOver2Pi;
-    }
-    else if ((_sin >= 0) and (_cos < 0)) {  // angle from 90-180 degrees
-        sinAngle = -(_sin - 2) * cOneOver2Pi;
-        cosAngle = -(_cos - 1) * cOneOver2Pi;
-    }
-    else if ((_sin < 0) and (_cos >= 0)) {  // angle from -90 to 0 degrees
-        sinAngle = _sin * cOneOver2Pi;        
-        cosAngle = (_cos - 1) * cOneOver2Pi;
-    }
-    else {                                  // angle from -180 to -90
-        sinAngle = -(_sin + 2) * cOneOver2Pi;
-        cosAngle = (_cos - 1) * cOneOver2Pi;
-    }
-    return (sinAngle + cosAngle)/2;
+void CapPosnBasic::setSinARange(int32_t max, int32_t min) {
+    _maxSinA = max;
+    _minSinA = min;
 }
 
-const int16_t CapPosnBasic::cPlaces = 1000;
-const int32_t CapPosnBasic::cRadDeg = (180.0f/M_PI) * CapPosnBasic::cPlaces;
-const int32_t CapPosnBasic::cPi = M_PI * CapPosnBasic::cPlaces;
-const int32_t CapPosnBasic::cHalfPi = CapPosnBasic::cPi/2;
-const int32_t CapPosnBasic::cOneOver2Pi = (CapPosnBasic::cPlaces)/(2 * M_PI);
+void CapPosnBasic::setSinBRange(int32_t max, int32_t min) {
+    _maxSinB = max;
+    _minSinB = min;
+}
+
+void CapPosnBasic::setCosARange(int32_t max, int32_t min) {
+    _maxCosA = max;
+    _minCosA = min;
+}
+
+void CapPosnBasic::setCosBRange(int32_t max, int32_t min) {
+    _maxCosB = max;
+    _minCosB = min;
+}
+
+
+float CapPosnBasic::calcAngle() {
+    // map all inputs to the same ranges
+    int32_t sa = map(_sinA, _minSinA, _maxSinA, INPUT_MIN, INPUT_MAX);
+    int32_t sb = map(_sinB, _minSinB, _maxSinB, INPUT_MIN, INPUT_MAX);
+    int32_t ca = map(_cosA, _minCosA, _maxCosA, INPUT_MIN, INPUT_MAX);
+    int32_t cb = map(_cosB, _minCosB, _maxCosB, INPUT_MIN, INPUT_MAX);
+
+    // calculate angle
+    _sin = ((((sa - sb) * _sinGain)/(sa + sb)) + _sinOffset);
+    _cos = ((((ca - cb) * _cosGain)/(ca + cb)) + _cosOffset);
+    return atan2(_sin, _cos);
+}
+
+const float CapPosnBasic::cRadDeg = (180.0f/M_PI);
+const float CapPosnBasic::cHalfPi = M_PI/2;
+const float CapPosnBasic::cOneOver2Pi = 1/(2 * M_PI);

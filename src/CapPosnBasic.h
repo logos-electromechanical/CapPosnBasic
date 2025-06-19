@@ -37,40 +37,45 @@ public:
     /*
      * Read the last measured angles, in degrees 
      */
-    float angleDeg() { return ((float)(_angle * cRadDeg)/cPlaces); }
+    float angleDeg() { return (_angle * cRadDeg); }
 
     /*
      * Read the last measured angles, in radians 
      */
-    float angleRad() { return ((float)_angle/cPlaces); }
+    float angleRad() { return _angle; }
 
     void setReadDelayMicros(uint16_t delay) { _readDelay = delay; }
     void setMeasureDelayMicros(uint16_t delay) { _measureDelay = delay; }
+
+    void setSinARange(int32_t max, int32_t min);
+    void setSinBRange(int32_t max, int32_t min);
+    void setCosARange(int32_t max, int32_t min);
+    void setCosBRange(int32_t max, int32_t min);
 
     // Read internal values 
     int16_t rawSinA() { return _sinA; }
     int16_t rawSinB() { return _sinB; }
     int16_t rawCosA() { return _cosA; }
     int16_t rawCosB() { return _cosB; }
-    float sinPhase() { return (float)_sin/cPlaces; }
-    float cosPhase() { return (float)_cos/cPlaces; }
+    float sinPhase() { return _sin; }
+    float cosPhase() { return _cos; }
 
 private:
     // constants 
-    static const int16_t cPlaces;
-    static const int32_t cRadDeg;
-    static const int32_t cHalfPi;
-    static const int32_t cPi;
-    static const int32_t cOneOver2Pi;
+    // static const int16_t cPlaces;
+    static const float cRadDeg;
+    static const float cHalfPi;
+    // static const int32_t cPi;
+    static const float cOneOver2Pi;
 
     // state variables
     int16_t _sinA;
     int16_t _sinB;
     int16_t _cosA;
     int16_t _cosB;
-    int32_t _sin;
-    int32_t _cos;
-    int32_t _angle;
+    float _sin;
+    float _cos;
+    float _angle;
 
     // configuration variables 
     uint32_t _drivePin;
@@ -81,12 +86,20 @@ private:
     uint16_t _readDelay;
     uint16_t _measureDelay;
     eAnalogReference _ref;
-    int32_t _sinGain;
-    int32_t _sinOffset;
-    int32_t _cosGain;
-    int32_t _cosOffset;
+    float _sinGain;
+    float _sinOffset;
+    float _cosGain;
+    float _cosOffset;
+    int32_t _maxSinA;
+    int32_t _minSinA;
+    int32_t _maxSinB;
+    int32_t _minSinB;
+    int32_t _maxCosA;
+    int32_t _minCosA;
+    int32_t _maxCosB;
+    int32_t _minCosB;
 
     // functions
-    int32_t calcAngle();
-    int32_t bound(int32_t x, int32_t max, int32_t min);
+    float calcAngle();
+    float bound(float x, float max = 1.0f, float min = -1.0f);
 };
